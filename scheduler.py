@@ -232,6 +232,7 @@ def setup_scheduler() -> AsyncIOScheduler:
     scheduler.add_job(
         scrape_all_sources, IntervalTrigger(minutes=SCRAPE_INTERVAL_MINUTES),
         id="scrape_all", replace_existing=True, max_instances=1,
+        next_run_time=datetime.now(timezone.utc)
     )
     scheduler.add_job(
         update_trending, IntervalTrigger(hours=TRENDING_UPDATE_INTERVAL_HOURS),
@@ -264,6 +265,7 @@ def setup_scheduler() -> AsyncIOScheduler:
     scheduler.add_job(
         run_fake_detection_batch, IntervalTrigger(hours=FAKE_DETECT_INTERVAL_HOURS),
         id="fake_detect", replace_existing=True, max_instances=1,
+        next_run_time=datetime.now(timezone.utc)
     )
 
     logger.info("📅 All 8 scheduler jobs registered")
