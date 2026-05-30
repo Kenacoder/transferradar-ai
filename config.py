@@ -42,7 +42,7 @@ MAX_RETRIES: int = 3
 RETRY_BASE_DELAY: float = 1.0  # seconds
 
 # ─── Job timeouts ──────────────────────────────────────────────────────────────
-JOB_TIMEOUT_SECONDS: int = 60
+JOB_TIMEOUT_SECONDS: int = 600
 
 # ─── Gemini ────────────────────────────────────────────────────────────────────
 GEMINI_MODEL: str = "gemini-1.5-flash"

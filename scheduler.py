@@ -63,6 +63,8 @@ async def scrape_all_sources() -> None:
             logger.info(
                 f"✅ Job: scrape_all_sources — {inserted} new items in {elapsed:.1f}s"
             )
+            # Immediately trigger fake detection on new items
+            asyncio.create_task(run_fake_detection_batch())
     except asyncio.TimeoutError:
         logger.error("❌ Job: scrape_all_sources — TIMEOUT")
     except Exception as e:
@@ -193,12 +195,12 @@ async def self_ping_keep_alive() -> None:
 async def run_fake_detection_batch() -> None:
     logger.info("⏰ Job: fake_detection_batch — START")
     try:
-        async with asyncio.timeout(JOB_TIMEOUT_SECONDS):
-            items = await db.get_unanalyzed_news(limit=20)
+        async with asyncio.timeout(900):  # 15 minutes timeout for 100 items
+            items = await db.get_unanalyzed_news(limit=100)
             if not items:
                 logger.info("✅ Job: fake_detection_batch — nothing to analyze")
                 return
-
+            
             from services.fake_detector import score_news_item
             analyzed = 0
             for item in items:
@@ -215,7 +217,7 @@ async def run_fake_detection_batch() -> None:
                         club_name=result.get("club_name")
                     )
                     analyzed += 1
-                    await asyncio.sleep(0.5)  # Rate limit Gemini API
+                    await asyncio.sleep(4.1)  # Strict 15 RPM rate limit for Gemini Free Tier
                 except Exception as e:
                     logger.warning(f"Fake detection failed for item {item['id']}: {e}")
 
@@ -266,8 +268,7 @@ def setup_scheduler() -> AsyncIOScheduler:
     )
     scheduler.add_job(
         run_fake_detection_batch, IntervalTrigger(hours=FAKE_DETECT_INTERVAL_HOURS),
-        id="fake_detect", replace_existing=True, max_instances=1,
-        next_run_time=datetime.now(timezone.utc)
+        id="fake_detect", replace_existing=True, max_instances=1
     )
 
     logger.info("📅 All 8 scheduler jobs registered")
