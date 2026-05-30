@@ -222,13 +222,17 @@ class Database:
             return None  # Duplicate
 
     async def update_news_analysis(
-        self, news_id: int, score: int, label: str, is_confirmed: bool
+        self, news_id: int, score: int, label: str, is_confirmed: bool,
+        player_name: Optional[str] = None, club_name: Optional[str] = None
     ) -> None:
         async with self._lock:
             await self._conn.execute(
                 """UPDATE news SET reliability_score=?, reliability_label=?,
-                   is_confirmed=? WHERE id=?""",
-                (score, label, 1 if is_confirmed else 0, news_id),
+                   is_confirmed=?,
+                   player_name=COALESCE(?, player_name),
+                   club_name=COALESCE(?, club_name)
+                   WHERE id=?""",
+                (score, label, 1 if is_confirmed else 0, player_name, club_name, news_id),
             )
             await self._conn.commit()
 

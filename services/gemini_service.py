@@ -31,7 +31,9 @@ Return this exact JSON:
   "reliability_label": "<CONFIRMED|HIGHLY RELIABLE|POSSIBLE|LOW RELIABILITY|FAKE RUMOR>",
   "confidence_reason": "<brief explanation>",
   "journalist_trust": "<HIGH|MEDIUM|LOW|UNKNOWN>",
-  "verdict": "<one sentence summary>"
+  "verdict": "<one sentence summary>",
+  "player_name": "<extracted player name, or null>",
+  "club_name": "<extracted destination club name, or null>"
 }}
 
 Scoring guide:

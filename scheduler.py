@@ -211,6 +211,8 @@ async def run_fake_detection_batch() -> None:
                         score=result.get("reliability_score", 0),
                         label=result.get("reliability_label", "UNKNOWN"),
                         is_confirmed=result.get("reliability_label") == "CONFIRMED",
+                        player_name=result.get("player_name"),
+                        club_name=result.get("club_name")
                     )
                     analyzed += 1
                     await asyncio.sleep(0.5)  # Rate limit Gemini API

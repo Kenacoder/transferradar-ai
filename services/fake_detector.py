@@ -57,6 +57,8 @@ def rule_based_score(title: str, source: str, summary: str) -> dict:
         "confidence_reason": "Rule-based heuristic scoring",
         "journalist_trust": "UNKNOWN",
         "verdict": f"Score: {score}/100 — {label}",
+        "player_name": None,
+        "club_name": None,
     }
 
 
