@@ -1,0 +1,15 @@
+.env
+data/
+logs/
+__pycache__/
+*.pyc
+*.pyo
+*.pyd
+.Python
+*.egg-info/
+dist/
+build/
+.venv/
+venv/
+*.sqlite3
+*.db-journal
