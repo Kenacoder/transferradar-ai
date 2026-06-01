@@ -17,17 +17,7 @@ from loguru import logger
 from config import RSS_FEEDS, CLUBS
 from utils.retry import async_retry
 
-# Build a flat set of club names for entity matching
-_CLUB_NAMES: list[str] = [v["name"].lower() for v in CLUBS.values()]
-_CLUB_ID_MAP: dict[str, str] = {
-    v["name"].lower(): k for k, v in CLUBS.items()
-}
-
-# Common player-role keywords to help detect player names (NER heuristic)
-_TRANSFER_VERBS = [
-    "signs", "joins", "moves", "transfers", "agrees", "completes",
-    "seals", "set to join", "close to", "nears", "heading to",
-]
+from utils.extractor import extract_club, extract_player, compute_rule_based_score
 
 
 def _clean_html(raw: str) -> str:
@@ -45,40 +35,6 @@ def _make_hash(title: str, source: str) -> str:
     """SHA-256 hash for deduplication based on title + source."""
     payload = f"{title.strip().lower()}::{source.lower()}"
     return hashlib.sha256(payload.encode()).hexdigest()
-
-
-def _extract_club(text: str) -> tuple[Optional[str], Optional[str]]:
-    """
-    Return (club_name, league) by scanning text for known club names.
-    Returns the first match found.
-    """
-    lower = text.lower()
-    for club_name in _CLUB_NAMES:
-        if club_name in lower:
-            club_id = _CLUB_ID_MAP.get(club_name)
-            if club_id:
-                from config import CLUBS as C, LEAGUES
-                league_id = C[club_id]["league"]
-                league_name = LEAGUES.get(league_id, {}).get("name", league_id)
-                return C[club_id]["name"], league_name
-    return None, None
-
-
-def _extract_player(title: str) -> Optional[str]:
-    """
-    Simple heuristic: look for a capitalised two-word name before a transfer verb.
-    E.g. "Kylian Mbappé signs for Real Madrid" → "Kylian Mbappé"
-    """
-    for verb in _TRANSFER_VERBS:
-        idx = title.lower().find(verb)
-        if idx > 2:
-            candidate = title[:idx].strip()
-            # Take the last 1-3 capitalised words as likely player name
-            words = candidate.split()
-            name_words = [w for w in words[-3:] if w and w[0].isupper()]
-            if 1 <= len(name_words) <= 3:
-                return " ".join(name_words)
-    return None
 
 
 @async_retry(retries=2, exceptions=(aiohttp.ClientError, asyncio.TimeoutError))
@@ -101,8 +57,14 @@ async def _fetch_feed(
             url_link = getattr(entry, "link", "")
             if not title or not url_link:
                 continue
-            club_name, league = _extract_club(f"{title} {summary}")
-            player_name = _extract_player(title)
+            
+            # Smart immediate local extraction
+            club_name, league = extract_club(f"{title} {summary}")
+            player_name = extract_player(title)
+            
+            # Immediately calculate default rule-based score so it's never 0%
+            score_data = compute_rule_based_score(title, name, summary)
+            
             news_hash = _make_hash(title, name)
             items.append({
                 "title": title,
@@ -113,9 +75,9 @@ async def _fetch_feed(
                 "club_name": club_name,
                 "league": league,
                 "hash": news_hash,
-                "reliability_score": 0,
-                "reliability_label": None,
-                "is_confirmed": 0,
+                "reliability_score": score_data["reliability_score"],
+                "reliability_label": score_data["reliability_label"],
+                "is_confirmed": score_data["is_confirmed"],
             })
         logger.debug(f"📡 [{name}] Fetched {len(items)} items")
         return items

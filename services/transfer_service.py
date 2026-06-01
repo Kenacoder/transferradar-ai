@@ -93,8 +93,12 @@ async def get_breaking_news(limit: int = 5) -> list[dict]:
     all_items = await db.get_latest_news(limit=50)
     breaking = [
         i for i in all_items
-        if (i.get("reliability_score") or 0) >= 70
-    ][:limit]
+        if (i.get("reliability_score") or 0) >= 70 or i.get("is_confirmed") == 1
+    ]
+    if not breaking and all_items:
+        breaking = all_items[:limit]
+    else:
+        breaking = breaking[:limit]
     await cache.set(cache_key, breaking)
     return breaking
 

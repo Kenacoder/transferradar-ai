@@ -14,6 +14,7 @@ from bs4 import BeautifulSoup
 from loguru import logger
 
 from utils.retry import async_retry
+from utils.extractor import extract_club, extract_player, compute_rule_based_score
 
 # Scrape targets: (name, url, article_selector, title_selector, summary_selector)
 SCRAPE_TARGETS = [
@@ -84,18 +85,25 @@ async def _scrape_target(
                 href = link_el.get("href", "")
                 link = href if href.startswith("http") else f"https://{name.lower()}.com{href}"
 
+            # Smart immediate local extraction
+            club_name, league = extract_club(f"{title} {summary}")
+            player_name = extract_player(title)
+            
+            # Immediately calculate default rule-based score so it's never 0%
+            score_data = compute_rule_based_score(title, name, summary)
+
             results.append({
                 "title": title,
                 "summary": summary,
                 "source": name,
                 "url": link or url,
-                "player_name": None,
-                "club_name": None,
-                "league": None,
+                "player_name": player_name,
+                "club_name": club_name,
+                "league": league,
                 "hash": _make_hash(title, name),
-                "reliability_score": 0,
-                "reliability_label": None,
-                "is_confirmed": 0,
+                "reliability_score": score_data["reliability_score"],
+                "reliability_label": score_data["reliability_label"],
+                "is_confirmed": score_data["is_confirmed"],
             })
 
         logger.debug(f"🕷️ [{name}] Scraped {len(results)} articles")

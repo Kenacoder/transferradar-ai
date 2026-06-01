@@ -55,8 +55,15 @@ def _club_keyboard(league_id: str) -> InlineKeyboardMarkup:
 
 
 # ─── News list keyboard for a club ────────────────────────────────────────────
-def _club_news_keyboard(club_id: str, news_items: list[dict], page: int = 0) -> InlineKeyboardMarkup:
+def _club_news_keyboard(club_id: str, news_items: list[dict], page: int = 0, is_sub: bool = False) -> InlineKeyboardMarkup:
     rows = []
+    
+    # Favorites toggle button
+    if is_sub:
+        rows.append([InlineKeyboardButton("⭐ Favorited (Tap to Remove)", callback_data=f"unsub_club:{club_id}:{page}")])
+    else:
+        rows.append([InlineKeyboardButton("☆ Add to Favorites", callback_data=f"sub_club:{club_id}:{page}")])
+        
     for item in news_items:
         title_short = item.get("title", "")[:35] + "…"
         rows.append([InlineKeyboardButton(
@@ -100,14 +107,18 @@ async def show_club_news(
     page: int = 0,
 ) -> None:
     query = update.callback_query
+    user = query.from_user
     try:
         from config import PAGE_SIZE
+        from services.transfer_service import is_subscribed
         news_items = await get_club_news(club_id, limit=PAGE_SIZE * (page + 1))
         # Slice for current page
         paged = news_items[page * PAGE_SIZE : (page + 1) * PAGE_SIZE]
         counts = await get_club_stats(club_id)
         header = format_club_header(club_id, counts)
-        keyboard = _club_news_keyboard(club_id, paged, page)
+        
+        is_sub = await is_subscribed(user.id, club_id)
+        keyboard = _club_news_keyboard(club_id, paged, page, is_sub)
         await query.edit_message_text(
             text=header,
             parse_mode="Markdown",

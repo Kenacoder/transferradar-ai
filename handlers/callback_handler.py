@@ -157,6 +157,28 @@ async def handle_callback(update: Update, context: ContextTypes.DEFAULT_TYPE) ->
             from handlers.alerts_handler import handle_unsubscribe
             await handle_unsubscribe(update, context, club_id)
 
+        elif data.startswith("sub_club:"):
+            _, club_id, page_str = data.split(":", 2)
+            page = int(page_str)
+            from handlers.alerts_handler import handle_subscribe
+            await handle_subscribe(update, context, club_id)
+            from handlers.leagues_handler import show_club_news
+            await show_club_news(update, context, club_id, page)
+
+        elif data.startswith("unsub_club:"):
+            _, club_id, page_str = data.split(":", 2)
+            page = int(page_str)
+            from services.transfer_service import unsubscribe
+            from config import CLUBS as C
+            success = await unsubscribe(user.id, club_id)
+            club_name = C.get(club_id, {}).get("name", club_id)
+            if success:
+                await query.answer(f"🔕 Removed {club_name} from Favorites", show_alert=True)
+            else:
+                await query.answer("⚠️ Could not unsubscribe.", show_alert=True)
+            from handlers.leagues_handler import show_club_news
+            await show_club_news(update, context, club_id, page)
+
         # ── No-op (placeholder buttons) ─────────────────────────────────────────
         elif data == "noop":
             pass

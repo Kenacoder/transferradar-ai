@@ -83,4 +83,10 @@ async def update_trending(items: list[dict]) -> None:
 
 async def get_trending_topics(limit: int = 10) -> list[dict]:
     """Return top trending topics from DB."""
-    return await db.get_trending(limit=limit)
+    topics = await db.get_trending(limit=limit)
+    if not topics:
+        latest = await db.get_latest_news(limit=100)
+        if latest:
+            await update_trending(latest)
+            topics = await db.get_trending(limit=limit)
+    return topics
