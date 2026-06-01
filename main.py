@@ -20,7 +20,7 @@ from telegram.ext import (
 
 from config import TELEGRAM_TOKEN, CLUBS, BOT_NAME
 from database import db
-from keep_alive import run_web_server
+
 from scheduler import run_scheduler, set_bot_app
 
 # ─── Loguru configuration ──────────────────────────────────────────────────────
@@ -152,7 +152,6 @@ async def main() -> None:
     try:
         await asyncio.gather(
             run_bot(app),
-            run_web_server(),
             run_scheduler(),
         )
     except KeyboardInterrupt:
