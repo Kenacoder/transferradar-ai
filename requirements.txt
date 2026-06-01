@@ -15,7 +15,10 @@ feedparser==6.0.11
 APScheduler==3.10.4
 aiosqlite==0.21.0
 
-
+# ── Web Server (keep-alive) ────────────────────────────
+fastapi==0.115.12
+uvicorn==0.34.3
+gunicorn==23.0.0
 
 # ── Utilities ─────────────────────────────────────────
 python-dotenv==1.1.0

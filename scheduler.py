@@ -1,13 +1,13 @@
 """
 scheduler.py — TransferRadar AI
-APScheduler AsyncIOScheduler with all 7 required background jobs.
+APScheduler AsyncIOScheduler with all 8 required background jobs.
 All jobs have try/except, loguru logging, and 60-second timeouts.
 """
 
 import asyncio
 from datetime import datetime, timezone
 
-
+import aiohttp
 from apscheduler.schedulers.asyncio import AsyncIOScheduler
 from apscheduler.triggers.cron import CronTrigger
 from apscheduler.triggers.interval import IntervalTrigger
@@ -16,8 +16,10 @@ from loguru import logger
 from config import (
     SCRAPE_INTERVAL_MINUTES,
     TRENDING_UPDATE_INTERVAL_HOURS,
+    SELF_PING_INTERVAL_MINUTES,
     FAKE_DETECT_INTERVAL_HOURS,
     JOB_TIMEOUT_SECONDS,
+    RENDER_URL,
     ROUNDUP_TIMES,
     CLEAN_NEWS_DAYS,
 )
@@ -176,6 +178,17 @@ async def clean_old_news() -> None:
         logger.error(f"❌ Job: clean_old_news — ERROR: {e}")
 
 
+# ─── Job 7: Self-ping keep-alive ───────────────────────────────────────────────
+async def self_ping_keep_alive() -> None:
+    logger.debug("⏰ Job: self_ping — pinging Render keep-alive URL")
+    try:
+        async with asyncio.timeout(15):
+            async with aiohttp.ClientSession() as session:
+                async with session.get(RENDER_URL, ssl=False) as resp:
+                    status = resp.status
+                    logger.debug(f"✅ Job: self_ping — HTTP {status}")
+    except Exception as e:
+        logger.warning(f"⚠️ Job: self_ping — {e}")
 
 
 # ─── Job 8: Run fake detection batch ──────────────────────────────────────────
@@ -217,7 +230,7 @@ async def run_fake_detection_batch() -> None:
 
 # ─── Scheduler setup ───────────────────────────────────────────────────────────
 def setup_scheduler() -> AsyncIOScheduler:
-    """Register all 7 jobs and return the configured scheduler."""
+    """Register all 8 jobs and return the configured scheduler."""
     r = ROUNDUP_TIMES
 
     scheduler.add_job(
@@ -250,11 +263,15 @@ def setup_scheduler() -> AsyncIOScheduler:
         id="clean_news", replace_existing=True,
     )
     scheduler.add_job(
+        self_ping_keep_alive, IntervalTrigger(minutes=SELF_PING_INTERVAL_MINUTES),
+        id="self_ping", replace_existing=True, max_instances=1,
+    )
+    scheduler.add_job(
         run_fake_detection_batch, IntervalTrigger(hours=FAKE_DETECT_INTERVAL_HOURS),
         id="fake_detect", replace_existing=True, max_instances=1
     )
 
-    logger.info("📅 All 7 scheduler jobs registered")
+    logger.info("📅 All 8 scheduler jobs registered")
     return scheduler
 
 
