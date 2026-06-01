@@ -45,7 +45,7 @@ RETRY_BASE_DELAY: float = 1.0  # seconds
 JOB_TIMEOUT_SECONDS: int = 600
 
 # ─── Gemini ────────────────────────────────────────────────────────────────────
-GEMINI_MODEL: str = "gemini-pro"
+GEMINI_MODEL: str = "gemini-1.5-flash"
 GEMINI_MAX_TOKENS: int = 512
 
 # ─── RSS Feeds ─────────────────────────────────────────────────────────────────
