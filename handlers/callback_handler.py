@@ -17,11 +17,15 @@ async def handle_callback(update: Update, context: ContextTypes.DEFAULT_TYPE) ->
     query = update.callback_query
     user = query.from_user
 
-    # Always acknowledge the callback immediately
-    try:
-        await query.answer()
-    except Exception:
-        pass
+    data = query.data or ""
+
+    # Acknowledge the callback immediately — but NOT for sub/unsub_club
+    # since those need their own query.answer() with show_alert=True
+    if not data.startswith(("sub_club:", "unsub_club:")):
+        try:
+            await query.answer()
+        except Exception:
+            pass
 
     # Per-user rate limiting
     if not await action_limiter.is_allowed(user.id):
@@ -34,7 +38,6 @@ async def handle_callback(update: Update, context: ContextTypes.DEFAULT_TYPE) ->
             pass
         return
 
-    data = query.data or ""
     logger.debug(f"📲 Callback [{user.id}]: {data}")
 
     try:
@@ -160,8 +163,27 @@ async def handle_callback(update: Update, context: ContextTypes.DEFAULT_TYPE) ->
         elif data.startswith("sub_club:"):
             _, club_id, page_str = data.split(":", 2)
             page = int(page_str)
-            from handlers.alerts_handler import handle_subscribe
-            await handle_subscribe(update, context, club_id)
+            # Subscribe silently — don't use handle_subscribe as it calls query.answer()
+            # which conflicts with the answer() already called at the top of this handler
+            from services.transfer_service import subscribe, is_subscribed
+            from config import CLUBS as C
+            club_name = C.get(club_id, {}).get("name", club_id)
+            try:
+                already = await is_subscribed(user.id, club_id)
+                if not already:
+                    await subscribe(user.id, club_id)
+                    try:
+                        await query.answer(f"🔔 Subscribed to {club_name}!", show_alert=True)
+                    except Exception:
+                        pass
+                else:
+                    try:
+                        await query.answer(f"✅ Already subscribed to {club_name}!", show_alert=True)
+                    except Exception:
+                        pass
+            except Exception as e:
+                logger.error(f"Subscribe error for {club_id}: {e}")
+            # Always refresh the club news page to show updated favorites state
             from handlers.leagues_handler import show_club_news
             await show_club_news(update, context, club_id, page)
 
@@ -170,12 +192,22 @@ async def handle_callback(update: Update, context: ContextTypes.DEFAULT_TYPE) ->
             page = int(page_str)
             from services.transfer_service import unsubscribe
             from config import CLUBS as C
-            success = await unsubscribe(user.id, club_id)
             club_name = C.get(club_id, {}).get("name", club_id)
-            if success:
-                await query.answer(f"🔕 Removed {club_name} from Favorites", show_alert=True)
-            else:
-                await query.answer("⚠️ Could not unsubscribe.", show_alert=True)
+            try:
+                success = await unsubscribe(user.id, club_id)
+                if success:
+                    try:
+                        await query.answer(f"🔕 Removed {club_name} from Favorites", show_alert=True)
+                    except Exception:
+                        pass
+                else:
+                    try:
+                        await query.answer("⚠️ Could not unsubscribe.", show_alert=True)
+                    except Exception:
+                        pass
+            except Exception as e:
+                logger.error(f"Unsubscribe error for {club_id}: {e}")
+            # Always refresh the club news page
             from handlers.leagues_handler import show_club_news
             await show_club_news(update, context, club_id, page)
 
